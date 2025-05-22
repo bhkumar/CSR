@@ -1,0 +1,67 @@
+<?php
+session_start();
+error_reporting(E_ALL);
+
+$countryName = $_POST['countryName'];
+$state = $_POST['state'];	
+$locality = $_POST['locality'];
+$organization = $_POST['organization'];
+$orgUnit = $_POST['organizationUnit'];
+$commonName = $_POST['commonName'];
+$altType = $_POST['altType'];
+$subjectAltName = $_POST['subjectAltName']; // example: DNS:abc.com,DNS:www.abc.com
+$keySize = $_POST['keySize'] ?? 2048;
+
+// Build distinguished name
+$dn = array(
+    "countryName" => $countryName,
+    "stateOrProvinceName" => $state,
+    "localityName" => $locality,
+    "organizationName" => $organization,
+    "organizationalUnitName" => $orgUnit,
+    "commonName" => $commonName
+);
+
+// Configuration for OpenSSL with SAN
+$config = [
+    "digest_alg" => "sha256",
+    "private_key_type" => OPENSSL_KEYTYPE_RSA,
+    "private_key_bits" => (int)$keySize,
+    "config" => __DIR__ . "/openssl.cnf", // Optional custom config
+];
+
+// Write SAN to a temp file
+$san_section = "[ req ]\n"
+             . "distinguished_name = req_distinguished_name\n"
+             . "req_extensions = v3_req\n"
+             . "[ req_distinguished_name ]\n"
+             . "[ v3_req ]\n"
+             . "subjectAltName = $subjectAltName\n";
+
+$tempCnf = tempnam(sys_get_temp_dir(), 'openssl_cnf_');
+file_put_contents($tempCnf, $san_section);
+
+// Generate private key
+$private_key = openssl_pkey_new([
+    "private_key_type" => OPENSSL_KEYTYPE_RSA,
+    "private_key_bits" => (int)$keySize
+]);
+
+// Generate CSR with SAN
+$csr = openssl_csr_new($dn, $private_key, [
+    'digest_alg' => 'sha256',
+    'config' => $tempCnf,
+    'req_extensions' => 'v3_req'
+]);
+
+// Export CSR and private key
+openssl_csr_export($csr, $csrOut);
+openssl_pkey_export($private_key, $privKeyOut);
+
+// Clean up temp config file
+unlink($tempCnf);
+
+// Output
+echo "<h4>CSR:</h4><pre>$csrOut</pre>";
+echo "<h4>Private Key:</h4><pre>$privKeyOut</pre>";
+

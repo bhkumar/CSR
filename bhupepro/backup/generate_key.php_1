@@ -1,0 +1,84 @@
+<?php
+session_start();
+error_reporting(E_ALL);
+
+$countryName = $_POST['countryName'];
+$state = $_POST['state'];	
+$locality = $_POST['locality'];
+$organization = $_POST['organization'];
+$orgUnit = $_POST['organizationUnit'];
+$commonName = $_POST['commonName'];
+$altType = $_POST['altType'];
+$subjectAltName = $_POST['subjectAltName']; // Example: DNS:abc.com,DNS:www.abc.com
+$keySize = $_POST['keySize'] ?? 2048;
+
+// Build distinguished name
+$dn = array(
+    "countryName" => $countryName,
+    "stateOrProvinceName" => $state,
+    "localityName" => $locality,
+    "organizationName" => $organization,
+    "organizationalUnitName" => $orgUnit,
+    "commonName" => $commonName
+);
+
+// Write SAN config to temp file
+$san_section = "[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[ req_distinguished_name ]
+C  = $countryName
+ST = $state
+L  = $locality
+O  = $organization
+OU = $orgUnit
+CN = $commonName
+
+[ v3_req ]
+subjectAltName = $subjectAltName
+";
+
+$tempCnf = tempnam(sys_get_temp_dir(), 'openssl_cnf_');
+file_put_contents($tempCnf, $san_section);
+
+// Generate private key
+$private_key = openssl_pkey_new([
+    "private_key_type" => OPENSSL_KEYTYPE_RSA,
+    "private_key_bits" => (int)$keySize
+]);
+
+// Generate CSR with SAN
+$csr = openssl_csr_new($dn, $private_key, [
+    'digest_alg' => 'sha256',
+    'config' => $tempCnf,
+    'req_extensions' => 'v3_req'
+]);
+
+// Export CSR and private key to strings
+openssl_csr_export($csr, $csrOut);
+openssl_pkey_export($private_key, $privKeyOut);
+
+// Save to downloadable files
+$filename_base = preg_replace('/[^a-zA-Z0-9]/', '', $commonName);
+$csrFile = "downloads/{$filenameBase}.csr";
+$keyFile = "downloads/{$filenameBase}.key";
+
+// Ensure downloads folder exists
+if (!is_dir('downloads')) {
+    mkdir('downloads', 0777, true);
+}
+
+// Write to files
+file_put_contents($csrFile, $csrOut);
+file_put_contents($keyFile, $privKeyOut);
+
+// Clean up
+unlink($tempCnf);
+
+// Provide download links
+echo "<h3>CSR generated successfully:</h3>";
+echo "<a href='$csrFile' download>Download CSR</a><br>";
+echo "<a href='$keyFile' download>Download Private Key</a>";
+

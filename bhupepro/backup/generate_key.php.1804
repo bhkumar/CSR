@@ -1,0 +1,50 @@
+<?php session_start();
+   error_reporting(E_ALL);
+error_reporting(-1);
+ini_set('error_reporting', E_ALL);
+	$countryName = $_POST['countryName'];
+	$state = $_POST['state'];	
+	$locality = $_POST['locality'];
+	$organization = $_POST['organization'];
+	$orgUnit = $_POST['organizationUnit'];
+	$commonName = $_POST['commonName'];
+	$altType = $_POST['altType'];
+ 	$subjectAltName = $_POST['subjectAltName'];
+	//$subjectAltName = array('DNS:abc.com','DNS:w.abc.com','DNS:t.abc.com');
+	$keySize = $_POST['keySize'];
+
+	$getVal = array("commonName" => $commonName,"subjectAltName" => $subjectAltName,"organizationName" => $organization,"organizationalUnitName" => $orgUnit,"localityName" => $locality,"stateOrProvinceName" => $state,"countryName" => $countryName);
+	
+// 	$getVal = array('req_distinguished_name'=>array("commonName" => $commonName,"organizationName" => $organization,"organizationalUnitName" => $orgUnit,"localityName" => $locality,"stateOrProvinceName" => $state,"countryName" => $countryName),'alt_name'=>array('subjectAltName'=>"DNS:abc.com,DNS:w.abc.com,DNS:t.abc.com"));
+    
+	// Generate a new private (and public) key pair
+	$private_key = openssl_pkey_new( array('private_key_type'=>OPENSSL_KEYTYPE_RSA,'private_key_bits'=>2048) );
+	$csr_resource = openssl_csr_new($getVal, $private_key, array('digest_alg'=>'sha256'));
+	$csr_subject = openssl_csr_get_subject($csr_resource);
+	 echo $csr_subject;
+	//openssl_csr_get_subject($csr_resource, $csr_string);
+	openssl_csr_export($csr_resource, $csr_string);
+	openssl_pkey_export($private_key, $private_key_string, "");
+
+	echo $csr_string."\n ********".$private_key_string."\n";
+
+// $subject = array(
+//     "commonName" => "aws.amazon.com",
+//     "organizationName" => "Amazon",
+//     "organizationalUnitName" => "IT",
+//     "localityName" => "Seattle",
+//     "stateOrProvinceName" => "Washington",
+//     "countryName" => "US",
+//     "emailAddress" => "example@amazon.com"
+// );
+ 
+// // Generate a new private (and public) key pair
+// $private_key = openssl_pkey_new( array('private_key_type'=>OPENSSL_KEYTYPE_RSA,'private_key_bits'=>2048) );
+// $csr_resource = openssl_csr_new($subject, $private_key, array('digest_alg'=>'sha256') );
+ 
+// openssl_csr_export($csr_resource, $csr_string);
+// openssl_pkey_export($private_key, $private_key_string, "mypassword");
+// echo $csr_string."\n";
+// echo $private_key_string."\n";
+
+?>
